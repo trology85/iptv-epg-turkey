@@ -279,10 +279,7 @@ def main():
         print("❌ EPG birleştirilemedi!")
         sys.exit(1)
     
-    # Kanal ID'lerini yeniden eşleştir
-    merged_root = remap_channel_ids(merged_root)
-    
-    # Filtreleme
+    # ÖNCE Filtreleme (kanal ID'leri değişmeden)
     xml_str = ET.tostring(merged_root, encoding='unicode')
     filtered_xml = parse_and_filter_epg(xml_str, days=7)
     
@@ -290,13 +287,16 @@ def main():
         print("❌ EPG filtrelemesi başarısız!")
         sys.exit(1)
     
+    # SONRA Kanal ID'lerini yeniden eşleştir
+    merged_root = ET.fromstring(filtered_xml)
+    merged_root = remap_channel_ids(merged_root)
+    
     # Kaydet
     output_path = "epg/epg_turkey.xml"
-    merged_root_filtered = ET.fromstring(filtered_xml)
     
-    if save_epg(merged_root_filtered, output_path):
-        channels = len(merged_root_filtered.findall('channel'))
-        programmes = len(merged_root_filtered.findall('programme'))
+    if save_epg(merged_root, output_path):
+        channels = len(merged_root.findall('channel'))
+        programmes = len(merged_root.findall('programme'))
         
         print()
         print("=" * 60)
