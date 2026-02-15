@@ -179,10 +179,10 @@ def parse_and_filter_epg(xml_content, days=7):
     try:
         root = ET.fromstring(xml_content)
         
-        # Geçmiş 3 gün ve gelecek 7 gün
+        # Çok geniş aralık: geçmiş 15 gün ve gelecek 15 gün (toplam 30 gün)
         now = datetime.now()
-        start_date_limit = now - timedelta(days=3)
-        end_date_limit = now + timedelta(days=days)
+        start_date_limit = now - timedelta(days=15)
+        end_date_limit = now + timedelta(days=15)
         
         # Programme öğelerini filtrele
         programmes = root.findall('programme')
@@ -197,11 +197,19 @@ def parse_and_filter_epg(xml_content, days=7):
                     if start_date < start_date_limit or start_date > end_date_limit:
                         root.remove(prog)
                         filtered_count += 1
-                except:
-                    pass
+                except Exception as ex:
+                    # Parse edilemeyen tarihleri de sil
+                    root.remove(prog)
+                    filtered_count += 1
         
         print(f"✅ {len(programmes) - filtered_count} program kaldı, {filtered_count} program filtrelendi")
         print(f"📅 Tarih aralığı: {start_date_limit.strftime('%Y-%m-%d')} - {end_date_limit.strftime('%Y-%m-%d')}")
+        
+        # Debug: İlk programın tarihini göster
+        if len(programmes) > 0:
+            first_prog = programmes[0]
+            print(f"🔍 İlk program tarihi: {first_prog.get('start', 'YOK')}")
+        
         return ET.tostring(root, encoding='unicode')
         
     except Exception as e:
