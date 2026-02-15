@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 
 """
 IPTV EPG Turkey - ID Mapping ile EPG Güncelleme
 M3U playlist'teki tvg-id değerlerine göre EPG kanallarını yeniden eşleştirir
