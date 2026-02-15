@@ -91,6 +91,10 @@ def merge_epg_sources(sources):
 def save_epg(root, output_path):
     """EPG'yi dosyaya kaydeder"""
     try:
+        # Klasör yoksa oluştur
+        import os
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
         # XML declaration ekle
         tree = ET.ElementTree(root)
         with open(output_path, 'wb') as f:
