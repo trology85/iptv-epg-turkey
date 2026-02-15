@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tv>
+  <!-- Bu örnek dosyadır. GitHub Actions ilk çalıştığında gerçek EPG verisi ile güncellenecektir. -->
+  
+  <channel id="trt1">
+    <display-name>TRT 1</display-name>
+  </channel>
+  
+  <channel id="now-tv">
+    <display-name>NOW TV</display-name>
+  </channel>
+  
+  <channel id="kanal-d">
+    <display-name>Kanal D</display-name>
+  </channel>
+  
+  <channel id="star-tv">
+    <display-name>Star TV</display-name>
+  </channel>
+  
+  <channel id="atv">
+    <display-name>ATV</display-name>
+  </channel>
+  
+  <programme start="20260215060000 +0300" stop="20260215070000 +0300" channel="trt1">
+    <title lang="tr">Sabah Haberleri</title>
+    <category lang="tr">Haber</category>
+  </programme>
+  
+  <programme start="20260215190000 +0300" stop="20260215200000 +0300" channel="trt1">
+    <title lang="tr">Ana Haber Bülteni</title>
+    <category lang="tr">Haber</category>
+  </programme>
+  
+  <!-- Daha fazla program GitHub Actions tarafından eklenecek -->
+</tv>
