@@ -1,56 +1,163 @@
-name: Update EPG Daily
+#!/usr/bin/env python3
+"""
+IPTV EPG Turkey - EPG Güncelleme Scripti
+Globetvapp'den Türk kanalları EPG verilerini çeker ve birleştirir
+"""
 
-on:
-  schedule:
-    # Her gün saat 03:00 UTC'de çalış (Türkiye saati 06:00)
-    - cron: '0 3 * * *'
-  
-  # Manuel tetikleme
-  workflow_dispatch:
+import requests
+import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
+import sys
 
-jobs:
-  update-epg:
-    runs-on: ubuntu-latest
+def fetch_epg_from_source(url):
+    """EPG kaynağından veri çeker"""
+    try:
+        print(f"📡 EPG verisi çekiliyor: {url}")
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        return response.text
+    except Exception as e:
+        print(f"❌ Hata: {e}")
+        return None
+
+def parse_and_filter_epg(xml_content, days=7):
+    """EPG'yi parse eder ve 7 günlük veriyi filtreler"""
+    try:
+        root = ET.fromstring(xml_content)
+        
+        # Geçmiş 3 gün ve gelecek 7 gün (toplam 10 gün)
+        now = datetime.now()
+        start_date_limit = now - timedelta(days=3)
+        end_date_limit = now + timedelta(days=days)
+        
+        # Programme öğelerini filtrele
+        programmes = root.findall('programme')
+        filtered_count = 0
+        
+        for prog in programmes[:]:  # Liste kopyası üzerinde iterate et
+            start_str = prog.get('start', '')
+            if start_str:
+                # XMLTV formatı: 20260215040000 +0300
+                try:
+                    start_date = datetime.strptime(start_str[:14], '%Y%m%d%H%M%S')
+                    
+                    # Çok eski veya çok ileri tarihteki programları sil
+                    if start_date < start_date_limit or start_date > end_date_limit:
+                        root.remove(prog)
+                        filtered_count += 1
+                except:
+                    pass
+        
+        print(f"✅ {len(programmes) - filtered_count} program kaldı, {filtered_count} program filtrelendi")
+        print(f"📅 Tarih aralığı: {start_date_limit.strftime('%Y-%m-%d')} - {end_date_limit.strftime('%Y-%m-%d')}")
+        return ET.tostring(root, encoding='unicode')
+        
+    except Exception as e:
+        print(f"❌ Parse hatası: {e}")
+        return None
+
+def merge_epg_sources(sources):
+    """Birden fazla EPG kaynağını birleştirir"""
+    print("🔄 EPG kaynakları birleştiriliyor...")
     
-    steps:
-      - name: 📥 Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: 🐍 Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
-      
-      - name: 📦 Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install requests
-      
-      - name: 🔄 Update EPG
-        run: python scripts/update_epg.py
-      
-      - name: 📊 Check changes
-        id: check_changes
-        run: |
-          if git diff --quiet; then
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "ℹ️  Değişiklik yok, commit atlanıyor"
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "✅ Değişiklik tespit edildi"
-          fi
-      
-      - name: 💾 Commit and push
-        if: steps.check_changes.outputs.changed == 'true'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add epg/epg_turkey.xml
-          git commit -m "🔄 EPG güncellendi - $(date +'%Y-%m-%d %H:%M:%S UTC')"
-          git push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: 🎉 Success
-        if: steps.check_changes.outputs.changed == 'true'
-        run: echo "✅ EPG başarıyla güncellendi ve push edildi!"
+    # İlk kaynağı al
+    merged_root = None
+    
+    for idx, source_url in enumerate(sources):
+        xml_content = fetch_epg_from_source(source_url)
+        if not xml_content:
+            continue
+            
+        try:
+            root = ET.fromstring(xml_content)
+            
+            if merged_root is None:
+                merged_root = root
+                print(f"  ✓ Kaynak {idx+1}: Temel olarak alındı")
+            else:
+                # Kanalları ve programları ekle
+                for channel in root.findall('channel'):
+                    merged_root.append(channel)
+                
+                for programme in root.findall('programme'):
+                    merged_root.append(programme)
+                    
+                print(f"  ✓ Kaynak {idx+1}: Birleştirildi")
+                
+        except Exception as e:
+            print(f"  ✗ Kaynak {idx+1}: Hata - {e}")
+            continue
+    
+    return merged_root
+
+def save_epg(root, output_path):
+    """EPG'yi dosyaya kaydeder"""
+    try:
+        # Klasör yoksa oluştur
+        import os
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
+        # XML declaration ekle
+        tree = ET.ElementTree(root)
+        with open(output_path, 'wb') as f:
+            f.write(b'<?xml version="1.0" encoding="UTF-8"?>\n')
+            tree.write(f, encoding='utf-8', xml_declaration=False)
+        
+        print(f"✅ EPG kaydedildi: {output_path}")
+        return True
+    except Exception as e:
+        print(f"❌ Kaydetme hatası: {e}")
+        return False
+
+def main():
+    print("=" * 60)
+    print("🇹🇷 IPTV EPG Turkey - Güncelleme Başlıyor")
+    print("=" * 60)
+    print(f"⏰ Zaman: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()
+    
+    # EPG Kaynakları
+    sources = [
+        "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey1.xml",
+        "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey2.xml",
+        "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey3.xml",
+        "https://raw.githubusercontent.com/globetvapp/epg/main/Turkey/turkey4.xml",
+    ]
+    
+    # EPG'leri birleştir
+    merged_root = merge_epg_sources(sources)
+    
+    if merged_root is None:
+        print("❌ EPG birleştirilemedi!")
+        sys.exit(1)
+    
+    # 7 günlük filtrele
+    xml_str = ET.tostring(merged_root, encoding='unicode')
+    filtered_xml = parse_and_filter_epg(xml_str, days=7)
+    
+    if not filtered_xml:
+        print("❌ EPG filtrelemesi başarısız!")
+        sys.exit(1)
+    
+    # Kaydet
+    output_path = "epg/epg_turkey.xml"
+    merged_root_filtered = ET.fromstring(filtered_xml)
+    
+    if save_epg(merged_root_filtered, output_path):
+        # İstatistikler
+        channels = len(merged_root_filtered.findall('channel'))
+        programmes = len(merged_root_filtered.findall('programme'))
+        
+        print()
+        print("=" * 60)
+        print("📊 İstatistikler:")
+        print(f"   Kanal sayısı: {channels}")
+        print(f"   Program sayısı: {programmes}")
+        print("=" * 60)
+        print("✅ Güncelleme tamamlandı!")
+        sys.exit(0)
+    else:
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
