@@ -175,40 +175,20 @@ def remap_channel_ids(root):
     return root
 
 def parse_and_filter_epg(xml_content, days=7):
-    """EPG'yi parse eder ve tarih filtreleme yapar"""
+    """EPG'yi parse eder - FİLTRELEME KAPALI (tüm programları alır)"""
     try:
         root = ET.fromstring(xml_content)
         
-        # Çok geniş aralık: geçmiş 15 gün ve gelecek 15 gün (toplam 30 gün)
-        now = datetime.now()
-        start_date_limit = now - timedelta(days=15)
-        end_date_limit = now + timedelta(days=15)
-        
-        # Programme öğelerini filtrele
         programmes = root.findall('programme')
-        filtered_count = 0
         
-        for prog in programmes[:]:
-            start_str = prog.get('start', '')
-            if start_str:
-                try:
-                    start_date = datetime.strptime(start_str[:14], '%Y%m%d%H%M%S')
-                    
-                    if start_date < start_date_limit or start_date > end_date_limit:
-                        root.remove(prog)
-                        filtered_count += 1
-                except Exception as ex:
-                    # Parse edilemeyen tarihleri de sil
-                    root.remove(prog)
-                    filtered_count += 1
+        print(f"✅ {len(programmes)} program alındı (filtreleme YOK)")
         
-        print(f"✅ {len(programmes) - filtered_count} program kaldı, {filtered_count} program filtrelendi")
-        print(f"📅 Tarih aralığı: {start_date_limit.strftime('%Y-%m-%d')} - {end_date_limit.strftime('%Y-%m-%d')}")
-        
-        # Debug: İlk programın tarihini göster
+        # Debug: İlk ve son programın tarihini göster
         if len(programmes) > 0:
             first_prog = programmes[0]
-            print(f"🔍 İlk program tarihi: {first_prog.get('start', 'YOK')}")
+            last_prog = programmes[-1]
+            print(f"🔍 İlk program: {first_prog.get('start', 'YOK')}")
+            print(f"🔍 Son program: {last_prog.get('start', 'YOK')}")
         
         return ET.tostring(root, encoding='unicode')
         
