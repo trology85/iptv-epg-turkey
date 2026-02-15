@@ -27,9 +27,7 @@ jobs:
           pip install requests
       
       - name: 🔄 Update EPG
-        run: |
-          cd scripts
-          python update_epg.py
+        run: python scripts/update_epg.py
       
       - name: 📊 Check changes
         id: check_changes
