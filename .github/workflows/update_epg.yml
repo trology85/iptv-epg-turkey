@@ -2,8 +2,8 @@ name: Günlük EPG Güncelleme
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Her gece 00:00'da çalışır
-  workflow_dispatch: # Manuel çalıştırma butonu ekler
+    - cron: '0 0 * * *' # Her gece 00:00 TSİ
+  workflow_dispatch: # Manuel çalıştırma butonu
 
 jobs:
   build:
@@ -21,12 +21,14 @@ jobs:
         run: pip install requests
 
       - name: Scraper'ı Çalıştır
-        run: python scraper.py # Python dosyanın adı scraper.py olmalı
+        # Kodun 'scripts' klasöründe olduğu için yolu belirttik
+        run: python scripts/scraper.py 
 
       - name: Güncellenen Dosyayı GitHub'a Yükle
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add turksat_epg.xml.gz
-          git commit -m "EPG Güncellendi: $(date)"
+          # epg klasöründeki her şeyi ekle
+          git add epg/*.xml.gz epg/*.xml || true 
+          git commit -m "EPG Güncellendi: $(date)" || echo "Değişiklik yok"
           git push
