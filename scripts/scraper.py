@@ -36,12 +36,15 @@ def create_xmltv():
 
     # XML'i kaydet ve sıkıştır
     tree = ET.ElementTree(root)
-    xml_file = "turksat_epg.xml"
-    tree.write(xml_file, encoding="utf-8", xml_declaration=True)
+    # scraper.py içindeki dosya yolları:
+xml_file = "epg/turksat_epg.xml"
+gz_file = "epg/turksat_epg.xml.gz"
 
-    with open(xml_file, 'rb') as f_in:
-        with gzip.open('turksat_epg.xml.gz', 'wb') as f_out:
-            f_out.writelines(f_in)
+# Kaydetme kısmında bu değişkenleri kullan:
+tree.write(xml_file, encoding="utf-8", xml_declaration=True)
+with open(xml_file, 'rb') as f_in:
+    with gzip.open(gz_file, 'wb') as f_out:
+        f_out.writelines(f_in)
     
     print("✅ xml.gz dosyası oluşturuldu.")
 
